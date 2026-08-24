@@ -1,0 +1,5 @@
+.env
+.venv
+.agents
+test_trello.py
+testes.ipynb
