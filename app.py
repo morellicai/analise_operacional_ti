@@ -18,14 +18,19 @@ def data_cards():
         'token': os.getenv("SECRET_KEY")
     }
 
-    response = requests.get(url, headers=headers, params=query)
+    try:
+        response = requests.get(url, headers=headers, params=query)
 
-    # 1. Verificamos se deu tudo certo (Status 200 = OK)
-    if response.status_code == 200:
         return response.json()
-    else:
-        st.error(f"Falha na Autenticação! Erro {response.status_code}: {response.text}")
-        return []
+
+    except requests.exceptions.HTTPError as erro_http:
+        st.error(f'Erro rota cards -> Falha na comunicação com o Trello: {erro_http}')
+
+    except requests.exceptions.ConnectionError as erro_conexao:
+        st.error(f'Sem conexão com a internet ou firewall bloqueado: {erro_conexao}')
+
+    except Exception as erro_geral:
+        st.error(f'Erro inesperado durante a estração: {erro_geral}')
 
 def data_label():
     url = (f'https://api.trello.com/1/boards/{BOARD_ID}/labels')
@@ -35,14 +40,19 @@ def data_label():
         'token': os.getenv("SECRET_KEY")
     }
 
-    response = requests.get(url, headers=headers, params=query)
+    try:
+        response = requests.get(url, headers=headers, params=query)
 
-    # 1. Verificamos se deu tudo certo (Status 200 = OK)
-    if response.status_code == 200:
         return response.json()
-    else:
-        st.error(f"Falha na Autenticação! Erro {response.status_code}: {response.text}")
-        return []  
+
+    except requests.exceptions.HTTPError as erro_http:
+        st.error(f'Erro rota labels -> Falha na comunicação com o Trello: {erro_http}')
+
+    except requests.exceptions.ConnectionError as erro_conexao:
+        st.error(f'Sem conexão com a internet ou firewall bloqueado: {erro_conexao}')
+
+    except Exception as erro_geral:
+        st.error(f'Erro inesperado durante a estração: {erro_geral}')
 
 def cleam_data_cards(df):
     df = df.dropna(axis=1, how='all')
