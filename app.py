@@ -86,6 +86,17 @@ def join_tables(df_left, df_right):
     join = df_left_exploded.merge(df_right, left_on='idLabels', right_on='id', how='inner')
 
     return join
+def normalize_date_format(date_str):
+    """
+    Normaliza o formato da data para o padrão dd/mm/yyyy
+    """
+    try:
+        date_obj = pd.to_datetime(date_str)
+        return date_obj.dt.strftime('%d/%m/%Y')
+    except Exception as e:
+        st.error(f'Erro ao normalizar a data: {e}')
+        return date_str
+
 
 dados_cards_json = data_cards()
 dados_labels_json = data_label()
@@ -110,12 +121,15 @@ data_cards = data_cards.rename(columns={
 })
 
 df_join = join_tables(data_cards, data_label)
+df_join['Última atividade'] = normalize_date_format(df_join['Última atividade'])
+df_join['Data Inicio'] = normalize_date_format(df_join['Data Inicio'])
+df_join['Data Prevista Entrega'] = normalize_date_format(df_join['Data Prevista Entrega'])
 
 # 3. Exibição no Streamlit
 st.title("💻 Painel de Operações TI")
 st.write("Chamados Brutos:")
 # Filtramos apenas o nome da tarefa e o ID da lista para inspecionar
 
-st.dataframe(df_join[['idShort','Nome do Card', 'Prioridade', 'Última atividade', 'Data Inicio', 'Data Prevista Entrega']], hide_index=True)
+st.dataframe(df_join[['idShort','Nome do Card', 'Prioridade', 'Data Inicio', 'Data Prevista Entrega', 'Card Finalizado', 'Última atividade']], hide_index=True)
 
 st.bar_chart(data_label, x='Prioridade', y='Uso', stack=False)
