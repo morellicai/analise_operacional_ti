@@ -1,165 +1,27 @@
 # This code sample uses the 'requests' library:
 # http://docs.python-requests.org
-import requests
 import pandas as pd
 import streamlit as st
-import os
-from dotenv import load_dotenv
+from api import data_cards, data_label, data_lists
+from cleam_data import cleam_data_cards, cleam_data_labels, cleam_data_lists
+from join import join_tables
+from normalize import normalize_date_format
 
-load_dotenv()
+# 1. Extração dos dados da API do Trello
+data_cards = cleam_data_cards(pd.DataFrame(data_cards()))
+data_label = cleam_data_labels(pd.DataFrame(data_label()))
+data_lists = cleam_data_lists(pd.DataFrame(data_lists()))
 
-BOARD_ID = "6a67a5b04b5807ee0484db29"
-
-def data_cards():
-    url = f"https://api.trello.com/1/boards/{BOARD_ID}/cards"
-    headers = {"Accept": "application/json"}
-    query = {
-        'key': os.getenv("API_KEY"),
-        'token': os.getenv("SECRET_KEY")
-    }
-
-    try:
-        response = requests.get(url, headers=headers, params=query)
-
-        return response.json()
-
-    except requests.exceptions.HTTPError as erro_http:
-        st.error(f'Erro rota cards -> Falha na comunicação com o Trello: {erro_http}')
-
-    except requests.exceptions.ConnectionError as erro_conexao:
-        st.error(f'Sem conexão com a internet ou firewall bloqueado: {erro_conexao}')
-
-    except Exception as erro_geral:
-        st.error(f'Erro inesperado durante a estração: {erro_geral}')
-
-def data_label():
-    url = (f'https://api.trello.com/1/boards/{BOARD_ID}/labels')
-    headers = {"Accept": "application/json"}
-    query = {
-        'key': os.getenv("API_KEY"),
-        'token': os.getenv("SECRET_KEY")
-    }
-
-    try:
-        response = requests.get(url, headers=headers, params=query)
-
-        return response.json()
-
-    except requests.exceptions.HTTPError as erro_http:
-        st.error(f'Erro rota labels -> Falha na comunicação com o Trello: {erro_http}')
-
-    except requests.exceptions.ConnectionError as erro_conexao:
-        st.error(f'Sem conexão com a internet ou firewall bloqueado: {erro_conexao}')
-
-    except Exception as erro_geral:
-        st.error(f'Erro inesperado durante a estração: {erro_geral}')
-
-def data_lists():
-    url = (f'https://api.trello.com/1/boards/{BOARD_ID}/lists')
-    headers = {"Accept": "application/json"}
-    query = {
-        'key': os.getenv("API_KEY"),
-        'token': os.getenv("SECRET_KEY")
-    }
-
-    try:
-        response = requests.get(url, headers=headers, params=query)
-
-        return response.json()
-
-    except requests.exceptions.HTTPError as erro_http:
-        st.error(f'Erro rota lists -> Falha na comunicação com o Trello: {erro_http}')
-
-    except requests.exceptions.ConnectionError as erro_conexao:
-        st.error(f'Sem conexão com a internet ou firewall bloqueado: {erro_conexao}')
-
-    except Exception as erro_geral:
-        st.error(f'Erro inesperado durante a estração: {erro_geral}')
-
-def cleam_data_cards(df):
-    df = df.dropna(axis=1, how='all')
-    df = df.drop(columns=[
-        'idBoard', 
-        'nodeId', 
-        'id', 
-        'closed', 
-        'isTemplate',
-        'subscribed',
-        'shortLink',
-        'shortUrl',
-        'cover',
-        'url',
-        'pinned',
-        'idMembersVoted',
-        'labels'
-    ])
-
-    return df
-
-def cleam_data_labels(df):
-    df = df.drop(columns=['idBoard'])
-    return df
-
-def cleam_data_lists(df):
-    df = df.drop(columns=['closed', 'idBoard', 'pos'])
-    return df
-
-def join_tables(df_left, df_center, df_right):
-    """
-    Trazer por join os titulos para os ids que vem de outra tabela
-    """
-    df_left_exploded = df_left.explode('idLabels')
-    join = df_left_exploded.merge(df_center, left_on='idLabels', right_on='id', how='inner')
-    join = join.merge(df_right, left_on='idList', right_on='id', how='inner')
-
-    return join
-
-def normalize_date_format(date_str):
-    """
-    Normaliza o formato da data para o padrão dd/mm/yyyy
-    """
-    try:
-        date_obj = pd.to_datetime(date_str)
-        return date_obj.dt.strftime('%d/%m/%Y')
-    except Exception as e:
-        st.error(f'Erro ao normalizar a data: {e}')
-        return date_str
-
-
-dados_cards_json = data_cards()
-dados_labels_json = data_label()
-dados_lists_json = data_lists()
-data_cards = pd.DataFrame(dados_cards_json)
-data_label = pd.DataFrame(dados_labels_json)
-data_lists = pd.DataFrame(dados_lists_json)
-
-data_cards = cleam_data_cards(data_cards)
-data_label = cleam_data_labels(data_label)
-data_lists = cleam_data_lists(data_lists)
-data_label = data_label.rename(columns={
-    'name': 'Prioridade',
-    'uses': 'Uso'
-})
-
-data_cards = data_cards.rename(columns={
-    'due': 'Data Prevista Entrega', 
-    'start': 'Data Inicio', 
-    'name': 'Nome do Card', 
-    'dateLastActivity': 'Última atividade',
-    'dueComplete': 'Card Finalizado'
-})
-
-
+# 2. Normalização e junção dos dados
 df_join = join_tables(data_cards, data_label, data_lists)
 
-df_join['Última atividade'] = normalize_date_format(df_join['Última atividade'])
-df_join['Data Inicio'] = normalize_date_format(df_join['Data Inicio'])
-df_join['Data Prevista Entrega'] = normalize_date_format(df_join['Data Prevista Entrega'])
+df_join[['Última atividade', 'Data Inicio', 'Data Prevista Entrega']] = df_join[['Última atividade', 'Data Inicio', 'Data Prevista Entrega']].apply(normalize_date_format)
 
-df_join = df_join.rename(columns={'name': 'Categoria'})
+# 3. Configuração da pagina de Exibição no Streamlit
+st.set_page_config(page_title="Painel de Operações TI", page_icon="💻", layout="wide")
+
 
 # 3. Exibição no Streamlit
-st.set_page_config(page_title="Painel de Operações TI", page_icon="💻", layout="wide")
 st.title("💻 Painel de Operações TI")
 
 # Filtramos apenas o nome da tarefa e o ID da lista para inspecionar
