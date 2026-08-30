@@ -14,24 +14,20 @@ data_lists = cleam_data_lists(pd.DataFrame(data_lists()))
 
 # 2. Normalização e junção dos dados
 df_join = join_tables(data_cards, data_label, data_lists)
-
 df_join[['Última atividade', 'Data Inicio', 'Data Prevista Entrega']] = df_join[['Última atividade', 'Data Inicio', 'Data Prevista Entrega']].apply(normalize_date_format)
+df = df_join[['idShort','Nome do Card', 'Prioridade', 'Data Inicio', 'Data Prevista Entrega', 'Card Finalizado', 'Última atividade', 'Categoria']]
+
+# Indicadores KPI's
+cards_finalizados_count = df['Card Finalizado'].value_counts().get(True, 0)
+count_cards_em_andamento = df_join['Categoria'].value_counts().get('Em andamento', 0)
+cards_finalizados_count_by_priority = df[df['Card Finalizado'] & df['Prioridade'].isin(['Alta', 'Crítico / Urgente'])].shape[0]
 
 # 3. Configuração da pagina de Exibição no Streamlit
 st.set_page_config(page_title="Painel de Operações TI", page_icon="💻", layout="wide")
 
-
-# 3. Exibição no Streamlit
 st.title("💻 Painel de Operações TI")
 
-# Filtramos apenas o nome da tarefa e o ID da lista para inspecionar
-df = df_join[['idShort','Nome do Card', 'Prioridade', 'Data Inicio', 'Data Prevista Entrega', 'Card Finalizado', 'Última atividade', 'Categoria']]
-
 col1, col2, col3, col4 = st.columns(4, border=True, gap='small')
-
-cards_finalizados_count = df['Card Finalizado'].value_counts().get(True, 0)
-count_cards_em_andamento = df_join['Categoria'].value_counts().get('Em andamento', 0)
-cards_finalizados_count_by_priority = df[df['Card Finalizado'] & df['Prioridade'].isin(['Alta', 'Crítico / Urgente'])].shape[0]
 
 with col1:
     st.metric(
@@ -61,5 +57,10 @@ with chart_col2:
 
 chart2_col1, chart2_col2 = st.columns(2, border=True, gap='small')
 
-st.subheader("Chamados Brutos:")
+with chart2_col1:
+    st.line_chart(df_join, x='Data Inicio', y='idShort', use_container_width=True, height=300, width=400)
+
+st.markdown('---')
+
+st.subheader("Tabela Chamados Brutos:")
 st.dataframe(df, hide_index=True)
