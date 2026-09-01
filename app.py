@@ -7,6 +7,14 @@ from cleam_data import cleam_data_cards, cleam_data_labels, cleam_data_lists
 from join import join_tables
 from normalize import normalize_date_format
 
+@st.dialog("Detalhes do Chamado")
+def modal_detalhs(select_line):
+    st.write(f"**Nome do Card:** {select_line['Nome do Card']}")
+    st.write(f"**Prioridade:** {select_line['Prioridade']}")
+    st.write(f"**Data Inicio:** {select_line['Data Inicio']}")
+    st.write(f"**Última atividade:** {select_line['Última atividade']}")
+    st.write(f"**Descrição:** {select_line['desc']}")
+
 # 1. Extração dos dados da API do Trello
 data_cards = cleam_data_cards(pd.DataFrame(data_cards()))
 data_label = cleam_data_labels(pd.DataFrame(data_label()))
@@ -15,7 +23,18 @@ data_lists = cleam_data_lists(pd.DataFrame(data_lists()))
 # 2. Normalização e junção dos dados
 df_join = join_tables(data_cards, data_label, data_lists)
 df_join[['Última atividade', 'Data Inicio', 'Data Prevista Entrega']] = df_join[['Última atividade', 'Data Inicio', 'Data Prevista Entrega']].apply(normalize_date_format)
-df = df_join[['idShort','Nome do Card', 'Prioridade', 'Data Inicio', 'Data Prevista Entrega', 'Card Finalizado', 'Última atividade', 'Categoria']]
+
+df = df_join[[
+    'idShort',
+    'Nome do Card', 
+    'Prioridade', 
+    'Data Inicio', 
+    'Data Prevista Entrega', 
+    'Card Finalizado', 
+    'Última atividade', 
+    'Categoria',
+    'desc'
+]]
 
 # Indicadores KPI's
 cards_finalizados_count = df['Card Finalizado'].value_counts().get(True, 0)
@@ -63,4 +82,17 @@ with chart2_col1:
 st.markdown('---')
 
 st.subheader("Tabela Chamados Brutos:")
-st.dataframe(df, hide_index=True)
+select = st.dataframe(
+    df, 
+    hide_index=True,
+    on_select="rerun",
+    selection_mode="single-row"
+)
+
+select_line = select["selection"]["rows"]
+
+if select_line:
+    index_line = select_line[0]
+    data_line = df.iloc[index_line]
+
+    modal_detalhs(data_line)
