@@ -49,8 +49,6 @@ calc_time_mean = 0
 df_finalizados = df[df['Card Finalizado'] == True]
 
 if not df_finalizados.empty:
-    st.write("Calculando o tempo médio de execução dos cards finalizados...")
-
     df_finalizados['Última atividade'] = pd.to_datetime(df_finalizados['Última atividade'], errors='coerce', dayfirst=True)
     df_finalizados['Data Inicio'] = pd.to_datetime(df_finalizados['Data Inicio'], errors='coerce', dayfirst=True)
 
