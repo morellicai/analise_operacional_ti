@@ -23,7 +23,8 @@ data_lists = cleam_data_lists(pd.DataFrame(data_lists()))
 
 # 2. Normalização e junção dos dados
 df_join = join_tables(data_cards, data_label, data_lists)
-df_join[['Última atividade', 'Data Inicio', 'Data Prevista Entrega']] = df_join[['Última atividade', 'Data Inicio', 'Data Prevista Entrega']].apply(normalize_date_format)
+
+df_join[['Data Inicio', 'Data Prevista Entrega', 'Última atividade']] = df_join[['Data Inicio', 'Data Prevista Entrega', 'Última atividade']].apply(normalize_date_format)
 
 df = df_join[[
     'idShort',
@@ -39,10 +40,28 @@ df = df_join[[
 
 # Indicadores KPI's
 
+df['Data Prevista Entrega'] = pd.to_datetime(df['Data Prevista Entrega'], errors='coerce', dayfirst=True)
 df['Data Inicio'] = pd.to_datetime(df['Data Inicio'], errors='coerce', dayfirst=True)
+df['Ultima atividade'] = pd.to_datetime(df['Última atividade'], errors='coerce', dayfirst=True)
+
+calc_time_mean = 0
+
+df_finalizados = df[df['Card Finalizado'] == True]
+
+if not df_finalizados.empty:
+    st.write("Calculando o tempo médio de execução dos cards finalizados...")
+
+    df_finalizados['Última atividade'] = pd.to_datetime(df_finalizados['Última atividade'], errors='coerce', dayfirst=True)
+    df_finalizados['Data Inicio'] = pd.to_datetime(df_finalizados['Data Inicio'], errors='coerce', dayfirst=True)
+
+    tempos_resolucao = df_finalizados['Última atividade'] - df_finalizados['Data Inicio']
+    
+    calc_time_mean = tempos_resolucao.mean().days
 
 with st.sidebar:
     st.title("💻 Painel de Operações TI")
+
+    checkbox = st.checkbox("Filtrar por período")
 
     select_date = st.date_input(
         "Selecione o período de análise", 
@@ -50,25 +69,29 @@ with st.sidebar:
         format="DD/MM/YYYY"
     )
 
-if select_date:
+if select_date and checkbox:
+    # 1. Transformamos as variáveis do Streamlit em Timestamps do Pandas
     inicio_periodo = pd.to_datetime(select_date)
-    fim_periodo = inicio_periodo + timedelta(days=7)
-
-    fim_periodo = pd.to_datetime(fim_periodo)
-
+    fim_periodo = inicio_periodo + pd.Timedelta(days=7)
+    
+    # 3. O Pulo do Gato: Remove fusos (se houver) e normaliza a hora para 00:00:00
+    df['Data Inicio'] = df['Data Inicio'].dt.tz_localize(None).dt.normalize()
+    
+    # 4. Aplica o filtro comparando apenas Timestamps nativos (maçãs com maçãs)
     filtro_periodo = (df['Data Inicio'] >= inicio_periodo) & (df['Data Inicio'] <= fim_periodo)
-    df_filtered = df.loc[filtro_periodo]
+    df = df.loc[filtro_periodo]
 
-cards_finalizados_count = df_filtered['Card Finalizado'].value_counts().get(True, 0)
-count_cards_em_andamento = df_join['Categoria'].value_counts().get('Em andamento', 0)
-cards_finalizados_count_by_priority = df_filtered[df_filtered['Card Finalizado'] & df_filtered['Prioridade'].isin(['Alta', 'Crítico / Urgente'])].shape[0]
+cards_finalizados_count = df['Card Finalizado'].value_counts().get(True, 0)
+count_cards_em_andamento = df['Categoria'].value_counts().get('Em andamento', 0)
+cards_finalizados_count_by_priority = df[df['Card Finalizado'] & df['Prioridade'].isin(['Alta', 'Crítico / Urgente'])].shape[0]
+df_count_priorit = df['Prioridade'].value_counts().reset_index().rename(columns={'count': 'Uso'})
 
 # 3. Configuração da pagina de Exibição no Streamlit
 
 st.set_page_config(page_title="Painel de Operações TI", page_icon="💻", layout="wide")
 
 
-col1, col2, col3, col4 = st.columns(4, border=True, gap='small')
+col1, col2, col3, col4, col5 = st.columns(5, border=True, gap='small')
 
 with col1:
     st.metric(
@@ -76,11 +99,25 @@ with col1:
         label='Volume de Cards Finalizados' 
     )
 with col2:
-    st.metric(label='Cards finalizados por prioridade Alta e Crítico / Urgente', value=cards_finalizados_count_by_priority)
+    st.metric(
+        label='Cards finalizados por prioridade Alta e Crítico / Urgente', 
+        value=cards_finalizados_count_by_priority
+    )
 with col3:
-    st.metric(label='Volume de Cards em Andamento', value=count_cards_em_andamento)
+    st.metric(
+        label='Volume de Cards em Andamento', 
+        value=count_cards_em_andamento
+    )
 with col4:
-    st.metric(label='Total de Cards A Fazer', value=df_filtered['Categoria'].isin(['A Fazer']).sum())
+    st.metric(
+        label='Total de Cards A Fazer', 
+        value=df['Categoria'].isin(['A Fazer']).sum()
+    )
+with col5:
+    st.metric(
+        label='Tempo médio de execução', 
+        value=calc_time_mean
+    )
 
 st.space()
 
@@ -94,20 +131,26 @@ with chart_col1:
 with chart_col2:
     st.markdown("### 📊 Chamados por Prioridade")
     st.space()
-    st.bar_chart(data_label, x='Prioridade', y='Uso', stack=False, use_container_width=True, horizontal=True, height=300, width=400)
+    st.bar_chart(df_count_priorit, x='Prioridade', y='Uso', stack=False, use_container_width=True, horizontal=True, height=300, width=400)
 
 chart2_col1, chart2_col2 = st.columns(2, border=True, gap='small')
 
+grouped_df = df.groupby([df['Data Inicio']]).count().reset_index()
+
 with chart2_col1:
-    st.line_chart(df_filtered, x='Data Inicio', y='idShort', use_container_width=True, height=300, width=400)
+    st.line_chart(grouped_df, x='Data Inicio', y='idShort', use_container_width=True, height=300, width=400)
 
 st.markdown('---')
 
 st.subheader("Tabela Chamados:")
-df_filtered['Data Inicio'] = normalize_date_format(df_filtered['Data Inicio'])
+
+# df['Data Inicio'] = df['Data Inicio'].dt.strftime('%d/%m/%Y')
+# df['Data Prevista Entrega'] = df['Data Prevista Entrega'].dt.strftime('%d/%m/%Y')
+# df['Última atividade'] = df['Última atividade'].dt.strftime('%d/%m/%Y')
+df[['Data Inicio', 'Data Prevista Entrega']] = df[['Data Inicio', 'Data Prevista Entrega']].apply(normalize_date_format)
 
 select = st.dataframe(
-    df_filtered, 
+    df, 
     hide_index=True,
     on_select="rerun",
     selection_mode="single-row"
@@ -117,6 +160,6 @@ select_line = select["selection"]["rows"]
 
 if select_line:
     index_line = select_line[0]
-    data_line = df_filtered.iloc[index_line]
+    data_line = df.iloc[index_line]
 
     modal_detalhs(data_line)
