@@ -10,11 +10,18 @@ from normalize import normalize_date_format
 
 @st.dialog("Detalhes do Chamado")
 def modal_detalhs(select_line):
-    st.write(f"**Nome do Card:** {select_line['Nome do Card']}")
-    st.write(f"**Prioridade:** {select_line['Prioridade']}")
-    st.write(f"**Data Inicio:** {select_line['Data Inicio']}")
-    st.write(f"**Última atividade:** {select_line['Última atividade']}")
-    st.write(f"**Descrição:** {select_line['desc']}")
+    st.markdown(
+        f"""
+        ## {select_line['Nome do Card']}
+
+        - **Prioridade**: {select_line['Prioridade']}
+        - **Data Inicio**: {select_line['Data Inicio']}
+
+        ---
+
+        "{select_line['desc']}"
+        """
+    )
 
 # 1. Extração dos dados da API do Trello
 data_cards = cleam_data_cards(pd.DataFrame(data_cards()))
