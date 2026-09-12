@@ -12,13 +12,7 @@ from normalize import normalize_date_format
 def modal_detalhs(select_line):
     st.markdown(f"## {select_line['Nome do Card']}")
     st.markdown(f"- **Prioridade**: {select_line['Prioridade']}\n- **Data Inicio**: {select_line['Data Inicio']}")
-    # st.markdown(f"- **Data Inicio**: {select_line['Data Inicio']}")
     st.markdown(f"\n\n---\n\n{select_line['desc']}")
-    # st.write(f"**Nome do Card:** {select_line['Nome do Card']}")
-    # st.write(f"**Prioridade:** {select_line['Prioridade']}")
-    # st.write(f"**Data Inicio:** {select_line['Data Inicio']}")
-    # st.write(f"**Última atividade:** {select_line['Última atividade']}")
-    # st.write(f"**Descrição:** {select_line['desc']}")
 
 # 1. Extração dos dados da API do Trello
 data_cards = cleam_data_cards(pd.DataFrame(data_cards()))
@@ -47,18 +41,6 @@ df = df_join[[
 df['Data Prevista Entrega'] = pd.to_datetime(df['Data Prevista Entrega'], errors='coerce', dayfirst=True)
 df['Data Inicio'] = pd.to_datetime(df['Data Inicio'], errors='coerce', dayfirst=True)
 df['Ultima atividade'] = pd.to_datetime(df['Última atividade'], errors='coerce', dayfirst=True)
-
-calc_time_mean = 0
-
-df_finalizados = df[df['Card Finalizado'] == True]
-
-if not df_finalizados.empty:
-    df_finalizados['Última atividade'] = pd.to_datetime(df_finalizados['Última atividade'], errors='coerce', dayfirst=True)
-    df_finalizados['Data Inicio'] = pd.to_datetime(df_finalizados['Data Inicio'], errors='coerce', dayfirst=True)
-
-    tempos_resolucao = df_finalizados['Última atividade'] - df_finalizados['Data Inicio']
-    
-    calc_time_mean = tempos_resolucao.mean().days
 
 with st.sidebar:
     st.title("💻 Painel de Operações TI")
@@ -93,7 +75,7 @@ df_count_priorit = df['Prioridade'].value_counts().reset_index().rename(columns=
 st.set_page_config(page_title="Painel de Operações TI", page_icon="💻", layout="wide")
 
 
-col1, col2, col3, col4, col5 = st.columns(5, border=True, gap='small')
+col1, col2, col3, col4 = st.columns(4, border=True, gap='small')
 
 with col1:
     st.metric(
@@ -114,11 +96,6 @@ with col4:
     st.metric(
         label='Total de Cards A Fazer', 
         value=df['Categoria'].isin(['A Fazer']).sum()
-    )
-with col5:
-    st.metric(
-        label='Tempo médio de execução', 
-        value=calc_time_mean
     )
 
 st.space()
@@ -152,7 +129,7 @@ st.subheader("Tabela Chamados:")
 df[['Data Inicio', 'Data Prevista Entrega']] = df[['Data Inicio', 'Data Prevista Entrega']].apply(normalize_date_format)
 
 select = st.dataframe(
-    df, 
+    df[['Nome do Card', 'Categoria', 'Prioridade', 'Data Inicio', 'Data Prevista Entrega', 'Card Finalizado', 'Última atividade']],
     hide_index=True,
     on_select="rerun",
     selection_mode="single-row"
