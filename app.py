@@ -1,28 +1,33 @@
-# This code sample uses the 'requests' library:
-# http://docs.python-requests.org
 import pandas as pd
 import streamlit as st
 from datetime import date, timedelta
-from api import data_cards, data_label, data_lists
-from cleam_data import cleam_data_cards, cleam_data_labels, cleam_data_lists
-from join import join_tables
-from normalize import normalize_date_format
+from etl.api import data_cards, data_label, data_lists
+from etl.metrics import soma_finalizados, cards_em_andamento, cards_finalizados_count_by_priority, count_priorit
+from etl.cleam_data import cleam_data_cards, cleam_data_labels, cleam_data_lists
+from etl.normalize import normalize_date_format
+from etl.join import join_tables
+from components.modal import modal_detalhs
+from components.kpis import kpis
+from components.charts import charts1, charts2
+from components.sidebar import sidebar
 
-@st.dialog("Detalhes do Chamado")
-def modal_detalhs(select_line):
-    st.markdown(f"## {select_line['Nome do Card']}")
-    st.markdown(f"- **Prioridade**: {select_line['Prioridade']}\n- **Data Inicio**: {select_line['Data Inicio']}")
-    st.markdown(f"\n\n---\n\n{select_line['desc']}")
+st.set_page_config(page_title="Painel de Operações TI", page_icon="💻", layout="wide")
 
-# 1. Extração dos dados da API do Trello
 data_cards = cleam_data_cards(pd.DataFrame(data_cards()))
 data_label = cleam_data_labels(pd.DataFrame(data_label()))
 data_lists = cleam_data_lists(pd.DataFrame(data_lists()))
 
-# 2. Normalização e junção dos dados
 df_join = join_tables(data_cards, data_label, data_lists)
 
-df_join[['Data Inicio', 'Data Prevista Entrega', 'Última atividade']] = df_join[['Data Inicio', 'Data Prevista Entrega', 'Última atividade']].apply(normalize_date_format)
+df_join[[
+    'Data Inicio', 
+    'Data Prevista Entrega', 
+    'Última atividade'
+]] = df_join[[
+    'Data Inicio', 
+    'Data Prevista Entrega', 
+    'Última atividade'
+]].apply(normalize_date_format)
 
 df = df_join[[
     'idShort',
@@ -36,96 +41,19 @@ df = df_join[[
     'desc'
 ]]
 
-# Indicadores KPI's
+df = sidebar(df)
 
-df['Data Prevista Entrega'] = pd.to_datetime(df['Data Prevista Entrega'], errors='coerce', dayfirst=True)
-df['Data Inicio'] = pd.to_datetime(df['Data Inicio'], errors='coerce', dayfirst=True)
-df['Ultima atividade'] = pd.to_datetime(df['Última atividade'], errors='coerce', dayfirst=True)
-
-with st.sidebar:
-    st.title("💻 Painel de Operações TI")
-
-    checkbox = st.checkbox("Filtrar por período")
-
-    select_date = st.date_input(
-        "Selecione o período de análise", 
-        value=date(2026, 9, 1),
-        format="DD/MM/YYYY"
-    )
-
-if select_date and checkbox:
-    # 1. Transformamos as variáveis do Streamlit em Timestamps do Pandas
-    inicio_periodo = pd.to_datetime(select_date)
-    fim_periodo = inicio_periodo + pd.Timedelta(days=7)
-    
-    # 3. O Pulo do Gato: Remove fusos (se houver) e normaliza a hora para 00:00:00
-    df['Data Inicio'] = df['Data Inicio'].dt.tz_localize(None).dt.normalize()
-    
-    # 4. Aplica o filtro comparando apenas Timestamps nativos (maçãs com maçãs)
-    filtro_periodo = (df['Data Inicio'] >= inicio_periodo) & (df['Data Inicio'] <= fim_periodo)
-    df = df.loc[filtro_periodo]
-
-cards_finalizados_count = df['Card Finalizado'].value_counts().get(True, 0)
-count_cards_em_andamento = df['Categoria'].value_counts().get('Em andamento', 0)
-cards_finalizados_count_by_priority = df[df['Card Finalizado'] & df['Prioridade'].isin(['Alta', 'Crítico / Urgente'])].shape[0]
-df_count_priorit = df['Prioridade'].value_counts().reset_index().rename(columns={'count': 'Uso'})
-
-# 3. Configuração da pagina de Exibição no Streamlit
-
-st.set_page_config(page_title="Painel de Operações TI", page_icon="💻", layout="wide")
-
-
-col1, col2, col3, col4 = st.columns(4, border=True, gap='small')
-
-with col1:
-    st.metric(
-        value=cards_finalizados_count,
-        label='Volume de Cards Finalizados' 
-    )
-with col2:
-    st.metric(
-        label='Cards finalizados por prioridade Alta e Crítico / Urgente', 
-        value=cards_finalizados_count_by_priority
-    )
-with col3:
-    st.metric(
-        label='Volume de Cards em Andamento', 
-        value=count_cards_em_andamento
-    )
-with col4:
-    st.metric(
-        label='Total de Cards A Fazer', 
-        value=df['Categoria'].isin(['A Fazer']).sum()
-    )
+kpis(df)
 
 st.space()
 
-chart_col1, chart_col2 = st.columns(2, border=True, gap='small')
-
-with chart_col1:
-    st.markdown("### 📊 Chamados por Categoria")
-    st.space()
-    st.bar_chart(df['Categoria'].value_counts(), use_container_width=True, height=300, width=400)
-
-with chart_col2:
-    st.markdown("### 📊 Chamados por Prioridade")
-    st.space()
-    st.bar_chart(df_count_priorit, x='Prioridade', y='Uso', stack=False, use_container_width=True, horizontal=True, height=300, width=400)
-
-chart2_col1, chart2_col2 = st.columns(2, border=True, gap='small')
-
-grouped_df = df.groupby([df['Data Inicio']]).count().reset_index()
-
-with chart2_col1:
-    st.line_chart(grouped_df, x='Data Inicio', y='idShort', use_container_width=True, height=300, width=400)
+charts1(df)
+charts2(df)
 
 st.markdown('---')
 
 st.subheader("Tabela Chamados:")
 
-# df['Data Inicio'] = df['Data Inicio'].dt.strftime('%d/%m/%Y')
-# df['Data Prevista Entrega'] = df['Data Prevista Entrega'].dt.strftime('%d/%m/%Y')
-# df['Última atividade'] = df['Última atividade'].dt.strftime('%d/%m/%Y')
 df[['Data Inicio', 'Data Prevista Entrega']] = df[['Data Inicio', 'Data Prevista Entrega']].apply(normalize_date_format)
 
 select = st.dataframe(
