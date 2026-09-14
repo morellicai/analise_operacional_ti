@@ -60,7 +60,9 @@ st.subheader('Tabela Chamados:')
 # crie uma cópia ou formate apenas a coluna de exibição para o st.dataframe:
 df_display = df.copy()
 for col in ['Data Inicio', 'Data Prevista Entrega', 'Última atividade']:
-    df_display[col] = df_display[col].dt.strftime('%d/%m/%Y')
+    df_display[col] = df_display[col].dt.strftime(  # type: ignore
+        '%d/%m/%Y'
+    )
 
 select = st.dataframe(
     df_display[
