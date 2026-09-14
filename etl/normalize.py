@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 
+
 def normalize_date_format(date_str):
     """
     Normaliza o formato da data para o padrão dd/mm/yyyy
