@@ -23,7 +23,6 @@ data_lists = cleam_data_lists(pd.DataFrame(data_lists()))
 
 df_join = join_tables(data_cards, data_label, data_lists)
 
-# 1. Converta para datetime de verdade usando pd.to_datetime (resolve o Pyright e o Pandas)
 date_cols = ['Data Inicio', 'Data Prevista Entrega', 'Última atividade']
 for col in date_cols:
     df_join[col] = pd.to_datetime(df_join[col], errors='coerce')
@@ -42,7 +41,6 @@ df = df_join[
     ]
 ]
 
-# A sidebar vai receber datetime legítimo e conseguir filtrar sem bugs
 df = sidebar(df)
 
 kpis(df)
@@ -56,8 +54,6 @@ st.markdown('---')
 
 st.subheader('Tabela Chamados:')
 
-# 2. Se você faz questão de exibir no formato DD/MM/YYYY na tabela final,
-# crie uma cópia ou formate apenas a coluna de exibição para o st.dataframe:
 df_display = df.copy()
 for col in ['Data Inicio', 'Data Prevista Entrega', 'Última atividade']:
     df_display[col] = df_display[col].dt.strftime(  # type: ignore
