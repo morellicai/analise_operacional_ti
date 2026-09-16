@@ -83,31 +83,42 @@ def data_lists():
 
 def data_actions():
     url = f'https://api.trello.com/1/boards/{BOARD_ID}/actions'
+
+    actions = []
+    limit_page = 200
+    ultimo_id_conhecido = None
     headers = {'Accept': 'application/json'}
-    query = {
-        'limit': 50,
-        'filter': 'createCard,updateCard',
-        'key': os.getenv('API_KEY'),
-        'token': os.getenv('SECRET_KEY'),
-    }
 
-    try:
-        response = requests.get(url, headers=headers, params=query)
+    while True:
+        query = {
+            'limit': limit_page,
+            'filter': 'createCard,updateCard',
+            'key': os.getenv('API_KEY'),
+            'token': os.getenv('SECRET_KEY'),
+        }
 
-        return response.json()
+        if ultimo_id_conhecido:
+            query['before'] = ultimo_id_conhecido
+        try:
+            response = requests.get(url, headers=headers, params=query)
+            if not response.json():
+                break
 
-    except requests.exceptions.HTTPError as erro_http:
-        print(erro_http)
-        st.error(
-            f'Erro actions -> Falha na comunicação com o Trello: {erro_http}'
-        )
+            actions.extend(response.json())
+            ultimo_id_conhecido = response.json()[-1]['id']
 
-    except requests.exceptions.ConnectionError as erro_conexao:
-        print(erro_conexao)
-        st.error(
-            f'Sem conexão com a internet ou firewall bloqueado: {erro_conexao}'
-        )
+        except requests.exceptions.HTTPError as erro_http:
+            print(erro_http)
+            st.error(f'Erro actions -> Falha comunicação Trello: {erro_http}')
 
-    except Exception as erro_geral:
-        print(erro_geral)
-        st.error(f'Erro inesperado durante a estração: {erro_geral}')
+        except requests.exceptions.ConnectionError as erro_con:
+            print(erro_con)
+            st.error(
+                f'Sem conexão com a internet ou firewall bloqueado: {erro_con}'
+            )
+
+        except Exception as erro_geral:
+            print(erro_geral)
+            st.error(f'Erro inesperado durante a estração: {erro_geral}')
+
+    return actions

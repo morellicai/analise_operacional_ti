@@ -5,7 +5,7 @@ from components.charts import charts1, charts2
 from components.kpis import kpis
 from components.modal import modal_detalhs
 from components.sidebar import sidebar
-from etl.api import data_cards, data_label, data_lists
+from etl.api import data_actions, data_cards, data_label, data_lists
 from etl.cleam_data import (
     cleam_data_cards,
     cleam_data_labels,
@@ -20,6 +20,7 @@ st.set_page_config(
 data_cards = cleam_data_cards(pd.DataFrame(data_cards()))
 data_label = cleam_data_labels(pd.DataFrame(data_label()))
 data_lists = cleam_data_lists(pd.DataFrame(data_lists()))
+data_actions = pd.DataFrame(data_actions())
 
 df_join = join_tables(data_cards, data_label, data_lists)
 
@@ -84,3 +85,7 @@ if select_line:
     data_line = df_display.iloc[index_line]
 
     modal_detalhs(data_line)
+
+st.markdown('---')
+
+st.dataframe(data_actions)
