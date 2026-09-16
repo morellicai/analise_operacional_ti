@@ -21,7 +21,7 @@ def data_cards():
 
     except requests.exceptions.HTTPError as erro_http:
         st.error(
-            f'Erro rota cards -> Falha na comunicação com o Trello: {erro_http}'
+            f'Erro cards -> Falha na comunicação com o Trello: {erro_http}'
         )
 
     except requests.exceptions.ConnectionError as erro_conexao:
@@ -45,7 +45,7 @@ def data_label():
 
     except requests.exceptions.HTTPError as erro_http:
         st.error(
-            f'Erro rota labels -> Falha na comunicação com o Trello: {erro_http}'
+            f'Erro labels -> Falha na comunicação com o Trello: {erro_http}'
         )
 
     except requests.exceptions.ConnectionError as erro_conexao:
@@ -69,7 +69,7 @@ def data_lists():
 
     except requests.exceptions.HTTPError as erro_http:
         st.error(
-            f'Erro rota lists -> Falha na comunicação com o Trello: {erro_http}'
+            f'Erro lists -> Falha na comunicação com o Trello: {erro_http}'
         )
 
     except requests.exceptions.ConnectionError as erro_conexao:
@@ -78,4 +78,36 @@ def data_lists():
         )
 
     except Exception as erro_geral:
+        st.error(f'Erro inesperado durante a estração: {erro_geral}')
+
+
+def data_actions():
+    url = f'https://api.trello.com/1/boards/{BOARD_ID}/actions'
+    headers = {'Accept': 'application/json'}
+    query = {
+        'limit': 50,
+        'filter': 'createCard,updateCard',
+        'key': os.getenv('API_KEY'),
+        'token': os.getenv('SECRET_KEY'),
+    }
+
+    try:
+        response = requests.get(url, headers=headers, params=query)
+
+        return response.json()
+
+    except requests.exceptions.HTTPError as erro_http:
+        print(erro_http)
+        st.error(
+            f'Erro actions -> Falha na comunicação com o Trello: {erro_http}'
+        )
+
+    except requests.exceptions.ConnectionError as erro_conexao:
+        print(erro_conexao)
+        st.error(
+            f'Sem conexão com a internet ou firewall bloqueado: {erro_conexao}'
+        )
+
+    except Exception as erro_geral:
+        print(erro_geral)
         st.error(f'Erro inesperado durante a estração: {erro_geral}')
