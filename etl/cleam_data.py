@@ -45,3 +45,9 @@ def cleam_data_lists(df):
     df = df.rename(columns={'name': 'Categoria'})
 
     return df
+
+
+def cleam_data_actions(df):
+    df = df.dropna(axis=1, how='all')
+
+    return df

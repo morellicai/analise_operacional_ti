@@ -7,6 +7,7 @@ from components.modal import modal_detalhs
 from components.sidebar import sidebar
 from etl.api import data_actions, data_cards, data_label, data_lists
 from etl.cleam_data import (
+    cleam_data_actions,
     cleam_data_cards,
     cleam_data_labels,
     cleam_data_lists,
@@ -20,7 +21,9 @@ st.set_page_config(
 data_cards = cleam_data_cards(pd.DataFrame(data_cards()))
 data_label = cleam_data_labels(pd.DataFrame(data_label()))
 data_lists = cleam_data_lists(pd.DataFrame(data_lists()))
-data_actions = pd.DataFrame(data_actions())
+data_actions = cleam_data_actions(
+    pd.json_normalize(data_actions(), max_level=2)
+)
 
 df_join = join_tables(data_cards, data_label, data_lists)
 
