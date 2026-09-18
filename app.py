@@ -12,7 +12,7 @@ from etl.cleam_data import (
     cleam_data_labels,
     cleam_data_lists,
 )
-from etl.join import join_tables
+from etl.join import join_last_line, join_tables
 
 st.set_page_config(
     page_title='Painel de Operações TI', page_icon='💻', layout='wide'
@@ -25,7 +25,9 @@ data_actions = cleam_data_actions(
     pd.json_normalize(data_actions(), max_level=2)
 )
 
+
 df_join = join_tables(data_cards, data_label, data_lists)
+df_join = join_last_line(data_actions, df_join)
 
 date_cols = ['Data Inicio', 'Data Prevista Entrega', 'Última atividade']
 for col in date_cols:
